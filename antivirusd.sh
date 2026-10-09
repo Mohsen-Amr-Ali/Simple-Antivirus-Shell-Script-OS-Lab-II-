@@ -14,42 +14,70 @@ then
     echo
     echo "$0 needs 3 parameters."
     echo "(dir - malicious_dir - interval_secs)"
+
+    exit 3
 fi
 
 dir="$1"
 malicious_dir="$2"
 interval_secs="$3"
 
-ls -l "$dir" > directory-info.last
-> directory-info.new
-
-##===================== ------ =====================##
+##===================== Fn DEFS =====================##
 
 function quarantine () {
-    echo "'$1' is malicious and it is DELETED"
-    cp "$1" "$malicious_dir" && rm -f "$1"
+    echo "${1##*/} is malicious and it is DELETED"
+    cp "$1" "$malicious_dir"/ && rm -f "$1"
 }
 
 function scan_extension () {
     local extension=${1##*.} #parameter expansion
-    if [ "$extension" = ".exe\|.bat\|.vbs\|.scr\|.ps1" ]
-    then
-        return 1
-    fi
-    return 0
+
+    case "$extension" in #because normal string operator in if doesn't support |
+        exe | bat | vbs | scr | ps1)
+        # I'm just now realising I didn't need to look into parameter expansions and could've just
+        # used *.exe .....
+            return 0
+        ;;
+    esac
+
+    return 1
 }
 
 function scan_content () {
-    return grep -Eliq 'virus|trojan|malware|worm|ransomware' "$1"
+    grep -Eiq 'virus|trojan|malware|worm|ransomware' "$1"
+    # E -> allow for regex
+    # i -> ignore case
+    # q -> just a y/n (exit status actually)
 }
 
 function scan () {
     for file in "$dir"/*
     do
-        if scan_extension "$file" || ! scan_content "$file" 
+        if [ -f "$file" ] && { scan_extension "$file" || scan_content "$file" ;}
+        # {...;} is for grouping without creating a subshell
         then
             quarantine "$file"
         fi
     done
 }
 
+##===================== MAIN =====================##
+
+while true
+do
+    if [ ! -e directory-info.last ]
+    then
+        scan 
+        ls -l "$dir" > directory-info.last
+    else
+        ls -l "$dir" > directory-info.new
+
+        if ! cmp -s directory-info.last directory-info.new
+        then
+            scan
+            cp directory-info.new directory-info.last
+        fi
+    fi
+
+    sleep "$interval_secs"
+done
