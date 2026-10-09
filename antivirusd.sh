@@ -27,11 +27,29 @@ ls -l "$dir" > directory-info.last
 
 function quarantine () {
     echo "'$1' is malicious and it is DELETED"
-    cp "$1" "$malicious_dir"
-    rm -f "$1"
+    cp "$1" "$malicious_dir" && rm -f "$1"
+}
+
+function scan_extension () {
+    local extension=${1##*.} #parameter expansion
+    if [ "$extension" = ".exe\|.bat\|.vbs\|.scr\|.ps1" ]
+    then
+        return 1
+    fi
+    return 0
 }
 
 function scan_content () {
-    grep -Eli 'virus|trojan|malware|worm|ransomware' "$dir"\*
+    return grep -Eliq 'virus|trojan|malware|worm|ransomware' "$1"
+}
+
+function scan () {
+    for file in "$dir"/*
+    do
+        if scan_extension "$file" || ! scan_content "$file" 
+        then
+            quarantine "$file"
+        fi
+    done
 }
 
