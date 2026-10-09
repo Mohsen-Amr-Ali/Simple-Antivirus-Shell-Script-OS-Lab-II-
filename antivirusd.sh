@@ -9,24 +9,29 @@
 #####====================================================================#####
 
 ##===================== SETUP =====================##
-if [ $# -ne 3]
+if [ $# -ne 3 ]
 then
     echo
     echo "$0 needs 3 parameters."
     echo "(dir - malicious_dir - interval_secs)"
 fi
 
-dir=$1
-malicious_dir=$2
-interval_secs=$3
+dir="$1"
+malicious_dir="$2"
+interval_secs="$3"
 
-ls -la "$dir" > directory-info.last
+ls -l "$dir" > directory-info.last
 > directory-info.new
 
 ##===================== ------ =====================##
 
-find_new(){
-    
+function quarantine () {
+    echo "'$1' is malicious and it is DELETED"
+    cp "$1" "$malicious_dir"
+    rm -f "$1"
 }
 
+function scan_content () {
+    grep -Eli 'virus|trojan|malware|worm|ransomware' "$dir"\*
+}
 
